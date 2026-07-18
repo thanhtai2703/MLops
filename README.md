@@ -19,7 +19,7 @@ Bản thân "app" chỉ cần đơn giản (một endpoint hỏi–đáp). **App
 
 | Skill sẵn có | Được tái sử dụng ở đâu |
 |---|---|
-| Kubernetes / EKS | Cluster chạy gateway + observability |
+| Kubernetes (kubeadm self-managed) | Cluster 3 node chạy gateway + observability |
 | ArgoCD + GitOps overlays (dev/prod) | Deploy config-as-code, promote qua git |
 | Terraform | (Tùy chọn) provision cluster cloud cho demo cuối |
 | Prometheus + Grafana | Đo metrics đặc thù LLM (token, cost, latency) |
@@ -81,7 +81,9 @@ Mỗi phase là một file riêng trong thư mục `phases/`. Làm tuần tự; 
 | Gateway | FastAPI (hoặc LiteLLM proxy) |
 | Model backend | Hosted LLM API → (tùy chọn) Ollama / vLLM |
 | Container | Docker |
-| Orchestration | Kubernetes — `kind` local, EKS chỉ cho demo cuối |
+| Orchestration | Kubernetes — cluster **kubeadm** tự dựng (1 CP + 2 worker), EKS chỉ cho demo cuối |
+| CNI | Calico |
+| Registry | Harbor (self-host) |
 | Deploy config | Kustomize (base + overlays dev/prod) |
 | GitOps | ArgoCD |
 | Metrics | Prometheus + Grafana |
@@ -125,7 +127,7 @@ llm-gateway/
 
 ## Lưu ý chi phí
 
-- Chạy chủ yếu trên **`kind` local** để khỏi tốn tiền AWS.
+- Chạy chủ yếu trên **cluster kubeadm tự dựng** (3 VM/máy local) để khỏi tốn tiền AWS.
 - Chỉ dựng EKS cho **một lần demo cuối** nếu muốn, rồi teardown ngay.
 - Dùng **model rẻ/nhỏ** cho hosted API, đặt giới hạn chi tiêu; eval dataset giữ nhỏ (vài chục câu).
 - Self-host: ưu tiên Ollama trên CPU cho model nhỏ; chỉ dùng GPU spot khi thật cần.
