@@ -58,6 +58,12 @@ Trên mỗi PR/push:
 2. Chạy gateway tạm (hoặc trỏ tới một môi trường eval) và chạy `run_eval.py`.
 3. **Nếu eval fail → job fail → PR không merge được.**
 4. In bảng điểm ra job summary để review nhìn thấy ngay.
+5. Chỉ khi eval **pass** trên nhánh chính → `docker login` vào **Harbor** rồi push image với tag
+   cố định (ví dụ theo git SHA). Đây là image mà ArgoCD sẽ deploy ở Phần C.
+
+> Runner phải tới được Harbor. Nếu Harbor nằm trong mạng nội bộ, dùng **self-hosted runner** trong
+> cùng mạng; lưu `HARBOR_USER`/`HARBOR_TOKEN` (nên dùng **robot account** của Harbor) trong GitHub
+> Secrets, đừng hard-code.
 
 Đây chính là bản LLMOps của "unit test chặn merge": prompt/model kém không lọt được vào nhánh chính.
 
@@ -70,7 +76,12 @@ Trên mỗi PR/push:
 ### 3.5 — Tách overlay dev/prod (Kustomize)
 
 `k8s/overlays/dev/` và `k8s/overlays/prod/` kế thừa `base` và khác nhau ở: số replica, tên model
-(dev dùng model rẻ), tài nguyên, tag image. Cấu hình (prompt version, model) khác nhau qua ConfigMap.
+(dev dùng model rẻ), tài nguyên, **tag image Harbor** (dev/prod trỏ tag khác nhau). Cấu hình
+(prompt version, model) khác nhau qua ConfigMap.
+
+> Nếu project Harbor là private, mỗi **namespace** deploy (dev, prod) cần secret `harbor-cred`
+> riêng cho `imagePullSecrets` — Secret không xuyên namespace. Tạo trước bằng tay, hoặc quản lý
+> qua External Secrets ở phase sau (xem [phase-4](phase-4-polish.md) mục production gap).
 
 ### 3.6 — ArgoCD Application
 

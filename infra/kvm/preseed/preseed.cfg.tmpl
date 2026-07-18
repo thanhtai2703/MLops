@@ -1,0 +1,69 @@
+# Preseed cho Debian installer (net-install qua virt-install --location).
+# Trả lời tự động mọi câu hỏi cài đặt + chuẩn bị sẵn node kubeadm qua late_command.
+# Placeholder {{HOSTNAME}} và {{SSH_PUBKEY}} do 02-create-vms.sh thay.
+
+### Ngôn ngữ / bàn phím / locale
+d-i debian-installer/locale string en_US.UTF-8
+d-i keyboard-configuration/xkb-keymap select us
+
+### Mạng (DHCP tự động)
+d-i netcfg/choose_interface select auto
+d-i netcfg/get_hostname string {{HOSTNAME}}
+d-i netcfg/get_domain string k8s.local
+d-i netcfg/hostname string {{HOSTNAME}}
+
+### Mirror (dùng mirror Nhật cho nhanh với VN; đổi nếu muốn)
+d-i mirror/country string manual
+d-i mirror/http/hostname string ftp.jp.debian.org
+d-i mirror/http/directory string /debian
+d-i mirror/http/proxy string
+
+### Đồng hồ
+d-i clock-setup/utc boolean true
+d-i time/zone string Asia/Ho_Chi_Minh
+d-i clock-setup/ntp boolean true
+
+### Tài khoản: bỏ root, tạo user 'debian' (sudo), mật khẩu cứu hộ 'debian'
+d-i passwd/root-login boolean false
+d-i passwd/user-fullname string Debian User
+d-i passwd/username string debian
+d-i passwd/user-password password debian
+d-i passwd/user-password-again password debian
+d-i user-setup/allow-password-weak boolean true
+d-i user-setup/encrypt-home boolean false
+
+### Phân vùng: dùng nguyên đĩa, LVM, tự động, không hỏi
+d-i partman-auto/method string lvm
+d-i partman-lvm/device_remove_lvm boolean true
+d-i partman-lvm/confirm boolean true
+d-i partman-lvm/confirm_nooverwrite boolean true
+d-i partman-auto/choose_recipe select atomic
+d-i partman-partitioning/confirm_write_new_label boolean true
+d-i partman/choose_partition select finish
+d-i partman/confirm boolean true
+d-i partman/confirm_nooverwrite boolean true
+
+### Bộ gói cơ sở: tối giản, chỉ SSH server + tiện ích
+tasksel tasksel/first multiselect ssh-server, standard
+d-i pkgsel/include string openssh-server sudo curl gpg apt-transport-https ca-certificates qemu-guest-agent
+d-i pkgsel/upgrade select safe-upgrade
+popularity-contest popularity-contest/participate boolean false
+
+### GRUB
+d-i grub-installer/only_debian boolean true
+d-i grub-installer/bootdev string default
+
+### Tự reboot khi cài xong, không hỏi
+d-i finish-install/reboot_in_progress note
+
+### ---- late_command: chỉ nhét SSH key + quyền sudo cho user 'debian' ----
+### Việc chuẩn bị node kubeadm (containerd, kube*) làm SAU qua 05-prepare-nodes.sh
+### (chạy qua SSH) — dễ debug hơn nhồi hết vào preseed.
+d-i preseed/late_command string \
+    in-target mkdir -p /home/debian/.ssh; \
+    echo '{{SSH_PUBKEY}}' > /target/home/debian/.ssh/authorized_keys; \
+    in-target chmod 700 /home/debian/.ssh; \
+    in-target chmod 600 /home/debian/.ssh/authorized_keys; \
+    in-target chown -R debian:debian /home/debian/.ssh; \
+    echo 'debian ALL=(ALL) NOPASSWD:ALL' > /target/etc/sudoers.d/010_debian-nopasswd; \
+    in-target chmod 440 /etc/sudoers.d/010_debian-nopasswd
