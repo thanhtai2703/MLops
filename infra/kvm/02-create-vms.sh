@@ -66,8 +66,14 @@ for NODE in "${NODES[@]}"; do
     --extra-args "auto=true priority=critical preseed/file=/${NODE}-preseed.cfg console=ttyS0,115200n8 serial" \
     --noautoconsole
 
+  # Tự bật lại khi host khởi động (khỏi mất công start tay sau mỗi lần tắt máy)
+  sudo virsh autostart "$NODE" >/dev/null 2>&1 || true
+
   rm -f "$PRESEED"
 done
+
+# Network cũng cần autostart để VM có mạng sau khi reboot host
+sudo virsh net-autostart default >/dev/null 2>&1 || true
 
 echo
 echo "==> Cả 3 VM đang CÀI ĐẶT (net-install, mất ~5-15 phút/VM tùy mạng)."

@@ -1,0 +1,15 @@
+# Khóa/chứng chỉ Harbor sinh ra tại chỗ — KHÔNG commit (chứa private key)
+infra/harbor/certs/
+
+# Secrets / env
+*.key
+*.pem
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/

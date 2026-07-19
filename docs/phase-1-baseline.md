@@ -62,84 +62,74 @@ docker push harbor.example.com/llmops/llm-gateway:dev
 
 ### 1.3 — Cluster kubeadm (1 control-plane + 2 worker)
 
-Đây là phần `kind` từng giấu bạn, giờ phải tự làm. Chạy các bước **chuẩn bị node trên cả 3 máy**,
-rồi `init` trên control-plane, cuối cùng `join` 2 worker.
+Toàn bộ việc **dựng 3 VM + chuẩn bị node** đã được đóng gói thành script trong
+[`infra/kvm/`](../infra/kvm/) — xem [`infra/kvm/README.md`](../infra/kvm/README.md) để chạy tuần
+tự. Tóm tắt những gì các script làm và các bước cluster còn lại làm bằng tay:
 
-**a) Chuẩn bị mọi node (chạy trên cả 3 máy):**
+**a) Dựng 3 VM Debian + chuẩn bị node (qua script `infra/kvm/`):**
 
 ```bash
-# 1. Tắt swap — kubelet không chạy nếu còn swap
-sudo swapoff -a
-sudo sed -i '/ swap / s/^/#/' /etc/fstab
-
-# 2. Nạp module kernel + sysctl cho mạng bridge
-sudo modprobe overlay && sudo modprobe br_netfilter
-cat <<'EOF' | sudo tee /etc/modules-load.d/k8s.conf
-overlay
-br_netfilter
-EOF
-cat <<'EOF' | sudo tee /etc/sysctl.d/k8s.conf
-net.bridge.bridge-nf-call-iptables  = 1
-net.bridge.bridge-nf-call-ip6tables = 1
-net.ipv4.ip_forward                 = 1
-EOF
-sudo sysctl --system
-
-# 3. Cài containerd và bật SystemdCgroup (sai chỗ này → pod CrashLoop khó hiểu)
-sudo apt-get update && sudo apt-get install -y containerd
-sudo mkdir -p /etc/containerd
-containerd config default | sudo tee /etc/containerd/config.toml >/dev/null
-sudo sed -i 's/SystemdCgroup = false/SystemdCgroup = true/' /etc/containerd/config.toml
-sudo systemctl restart containerd
-
-# 4. Cài kubeadm/kubelet/kubectl cùng minor version rồi GHIM lại
-#    (ghim để 'apt upgrade' không nâng version phá cluster)
-# ... thêm apt repo pkgs.k8s.io theo version mong muốn ...
-sudo apt-get install -y kubelet kubeadm kubectl
-sudo apt-mark hold kubelet kubeadm kubectl
+cd infra/kvm
+./01-prereqs.sh          # công cụ + libvirt network/pool
+sudo bash 02-create-vms.sh   # net-install 3 VM Debian (cp1, worker1, worker2)
+./04-show-ips.sh         # lấy IP các VM (DHCP, dải 192.168.122.0/24)
+./05-prepare-nodes.sh    # SSH vào 3 node: swap off, sysctl, containerd, kubeadm/kubelet/kubectl
 ```
 
-**b) Khởi tạo control-plane (chỉ trên máy control-plane):**
+`05-prepare-nodes.sh` làm đúng "chuẩn bị node kubeadm": tắt swap, nạp module + sysctl bridge, cài
+containerd (`SystemdCgroup=true`), cài & ghim `kubeadm/kubelet/kubectl`.
 
-`--pod-network-cidr` phải **khớp** với manifest Calico ở bước sau.
+> **Dùng net-install thay cloud image:** Debian cloud image kẹt boot trên máy dev này nên
+> `02-create-vms.sh` dùng `virt-install --location` (net-install) + preseed. Chi tiết trong
+> `infra/kvm/README.md`.
+>
+> **Bẫy Debian 13 + repo Kubernetes:** Debian 13 (`sqv`) từ chối chữ ký GPG kiểu cũ (v3) của repo
+> K8s → `apt` báo *"repository is not signed"*. Script khắc phục bằng `deb [trusted=yes]` cho riêng
+> repo K8s (tải qua HTTPS từ `pkgs.k8s.io` chính thức). Dùng kênh **v1.33**.
+
+**b) Khởi tạo control-plane (trên `cp1`):**
+
+`--apiserver-advertise-address` = IP của cp1; `--pod-network-cidr` phải **khớp** manifest Calico.
 
 ```bash
-sudo kubeadm init --pod-network-cidr=192.168.0.0/16
+sudo kubeadm init \
+  --apiserver-advertise-address=<IP-cp1> \
+  --pod-network-cidr=192.168.0.0/16
 
-# Cấu hình kubectl cho user thường
+# Cấu hình kubectl cho user thường (bắt buộc, nếu không kubectl trỏ localhost:8080 và fail)
 mkdir -p $HOME/.kube
 sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
 sudo chown $(id -u):$(id -g) $HOME/.kube/config
 ```
 
-`kubeadm init` in ra một lệnh `kubeadm join ...` kèm token — **lưu lại** để dùng cho worker.
+`kubeadm init` in ra một lệnh `kubeadm join ...` kèm token — **lưu lại** cho worker. (Token hết hạn
+sau 24h; tạo lại bằng `kubeadm token create --print-join-command` trên cp1.)
 
-**c) Cài CNI Calico (trên control-plane):**
+**c) Cài CNI Calico (trên `cp1`):**
 
-Node sẽ ở trạng thái `NotReady` cho tới khi có CNI. Dùng `--pod-network-cidr` mặc định của Calico
-(`192.168.0.0/16`) như trên thì không cần sửa gì thêm; nếu bạn đổi CIDR, phải sửa cả manifest Calico.
+Node ở trạng thái `NotReady` cho tới khi có CNI. `custom-resources.yaml` mặc định dùng CIDR
+`192.168.0.0/16` — khớp đúng bước init nên không cần sửa.
 
 ```bash
-kubectl apply -f https://raw.githubusercontent.com/projectcalico/calico/v3.28.0/manifests/tigera-operator.yaml
-kubectl apply -f https://raw.githubusercontent.com/projectcalico/calico/v3.28.0/manifests/custom-resources.yaml
+kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.28.0/manifests/tigera-operator.yaml
+kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.28.0/manifests/custom-resources.yaml
+kubectl get pods -n calico-system -w   # đợi Running; sau đó cp1 chuyển Ready
 ```
 
-**d) Join 2 worker (chạy trên từng máy worker):**
-
-Dán đúng lệnh `kubeadm join` đã lưu ở bước (b):
+**d) Join 2 worker (chạy trên từng worker, kèm `sudo`):**
 
 ```bash
-sudo kubeadm join <CP-IP>:6443 --token <token> --discovery-token-ca-cert-hash sha256:<hash>
+sudo kubeadm join <IP-cp1>:6443 --token <token> --discovery-token-ca-cert-hash sha256:<hash>
 ```
 
-**e) Kiểm tra cluster (trên control-plane):**
+**e) Kiểm tra cluster (trên `cp1`):**
 
 ```bash
-kubectl get nodes -o wide   # cả 3 node phải Ready
+kubectl get nodes -o wide   # cả 3 node phải Ready (worker mới join NotReady vài chục giây)
 kubectl cluster-info
 ```
 
-> Vì có 2 worker, **không cần** gỡ taint control-plane — workload sẽ tự schedule lên worker.
+> Vì có 2 worker, **không cần** gỡ taint control-plane — workload tự schedule lên worker.
 > (Chỉ single-node mới phải `kubectl taint nodes --all node-role.kubernetes.io/control-plane-`.)
 
 ### 1.4 — Manifest Kubernetes (Kustomize base)
