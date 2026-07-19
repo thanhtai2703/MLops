@@ -1,144 +1,101 @@
-########## 1. QEMU log của cp1 (nguyên nhân boot fail thường ở đây) ##########
--name guest=cp1,debug-threads=on \
--S \
--object '{"qom-type":"secret","id":"masterKey0","format":"raw","file":"/var/lib/libvirt/qemu/domain-4-cp1/master-key.aes"}' \
--machine pc-q35-10.0,usb=off,dump-guest-core=off,memory-backend=pc.ram,hpet=off,acpi=on \
--accel kvm \
--cpu host,migratable=on \
--m size=3145728k \
--object '{"qom-type":"memory-backend-ram","id":"pc.ram","size":3221225472}' \
--overcommit mem-lock=off \
--smp 2,sockets=2,cores=1,threads=1 \
--uuid 1003e9ab-9b1c-48da-bca6-a0e88ed78753 \
--display none \
--no-user-config \
--nodefaults \
--chardev socket,id=charmonitor,fd=33,server=on,wait=off \
--mon chardev=charmonitor,id=monitor,mode=control \
--rtc base=utc,driftfix=slew \
--global kvm-pit.lost_tick_policy=delay \
--no-shutdown \
--global ICH9-LPC.disable_s3=1 \
--global ICH9-LPC.disable_s4=1 \
--boot strict=on \
--device '{"driver":"pcie-root-port","port":8,"chassis":1,"id":"pci.1","bus":"pcie.0","multifunction":true,"addr":"0x1"}' \
--device '{"driver":"pcie-root-port","port":9,"chassis":2,"id":"pci.2","bus":"pcie.0","addr":"0x1.0x1"}' \
--device '{"driver":"pcie-root-port","port":10,"chassis":3,"id":"pci.3","bus":"pcie.0","addr":"0x1.0x2"}' \
--device '{"driver":"pcie-root-port","port":11,"chassis":4,"id":"pci.4","bus":"pcie.0","addr":"0x1.0x3"}' \
--device '{"driver":"pcie-root-port","port":12,"chassis":5,"id":"pci.5","bus":"pcie.0","addr":"0x1.0x4"}' \
--device '{"driver":"pcie-root-port","port":13,"chassis":6,"id":"pci.6","bus":"pcie.0","addr":"0x1.0x5"}' \
--device '{"driver":"pcie-root-port","port":14,"chassis":7,"id":"pci.7","bus":"pcie.0","addr":"0x1.0x6"}' \
--device '{"driver":"pcie-root-port","port":15,"chassis":8,"id":"pci.8","bus":"pcie.0","addr":"0x1.0x7"}' \
--device '{"driver":"pcie-root-port","port":16,"chassis":9,"id":"pci.9","bus":"pcie.0","multifunction":true,"addr":"0x2"}' \
--device '{"driver":"pcie-root-port","port":17,"chassis":10,"id":"pci.10","bus":"pcie.0","addr":"0x2.0x1"}' \
--device '{"driver":"pcie-root-port","port":18,"chassis":11,"id":"pci.11","bus":"pcie.0","addr":"0x2.0x2"}' \
--device '{"driver":"pcie-root-port","port":19,"chassis":12,"id":"pci.12","bus":"pcie.0","addr":"0x2.0x3"}' \
--device '{"driver":"pcie-root-port","port":20,"chassis":13,"id":"pci.13","bus":"pcie.0","addr":"0x2.0x4"}' \
--device '{"driver":"pcie-root-port","port":21,"chassis":14,"id":"pci.14","bus":"pcie.0","addr":"0x2.0x5"}' \
--device '{"driver":"qemu-xhci","p2":15,"p3":15,"id":"usb","bus":"pci.2","addr":"0x0"}' \
--device '{"driver":"virtio-serial-pci","id":"virtio-serial0","bus":"pci.3","addr":"0x0"}' \
--blockdev '{"driver":"file","filename":"/var/lib/libvirt/images/debian13-base.qcow2","node-name":"libvirt-3-storage","auto-read-only":true,"discard":"unmap"}' \
--blockdev '{"node-name":"libvirt-3-format","read-only":true,"driver":"qcow2","file":"libvirt-3-storage","backing":null}' \
--blockdev '{"driver":"file","filename":"/var/lib/libvirt/images/cp1.qcow2","node-name":"libvirt-2-storage","auto-read-only":true,"discard":"unmap"}' \
--blockdev '{"node-name":"libvirt-2-format","read-only":false,"driver":"qcow2","file":"libvirt-2-storage","backing":"libvirt-3-format"}' \
--device '{"driver":"virtio-blk-pci","bus":"pci.4","addr":"0x0","drive":"libvirt-2-format","id":"virtio-disk0","bootindex":1}' \
--blockdev '{"driver":"file","filename":"/var/lib/libvirt/images/cp1-seed.iso","node-name":"libvirt-1-storage","read-only":true}' \
--device '{"driver":"ide-cd","bus":"ide.0","drive":"libvirt-1-storage","id":"sata0-0-0"}' \
--netdev '{"type":"tap","fd":"34","vhost":true,"vhostfd":"36","id":"hostnet0"}' \
--device '{"driver":"virtio-net-pci","netdev":"hostnet0","id":"net0","mac":"52:54:00:aa:fe:cd","bus":"pci.1","addr":"0x0"}' \
--chardev pty,id=charserial0 \
--device '{"driver":"isa-serial","chardev":"charserial0","id":"serial0","index":0}' \
--chardev socket,id=charchannel0,fd=32,server=on,wait=off \
--device '{"driver":"virtserialport","bus":"virtio-serial0.0","nr":1,"chardev":"charchannel0","id":"channel0","name":"org.qemu.guest_agent.0"}' \
--audiodev '{"id":"audio1","driver":"none"}' \
--global ICH9-LPC.noreboot=off \
--watchdog-action reset \
--device '{"driver":"virtio-balloon-pci","id":"balloon0","bus":"pci.5","addr":"0x0"}' \
--object '{"qom-type":"rng-random","id":"objrng0","filename":"/dev/urandom"}' \
--device '{"driver":"virtio-rng-pci","rng":"objrng0","id":"rng0","bus":"pci.6","addr":"0x0"}' \
--sandbox on,obsolete=deny,elevateprivileges=deny,spawn=deny,resourcecontrol=deny \
--msg timestamp=on
-char device redirected to /dev/pts/6 (label charserial0)
-
-########## 2. Dòng lệnh QEMU thực tế đang chạy cho cp1 ##########
--machine
-{"driver":"pcie-root-port","port":8,"chassis":1,"id":"pci.1","bus":"pcie.0","multifunction":true,"addr":"0x1"}
-{"driver":"pcie-root-port","port":9,"chassis":2,"id":"pci.2","bus":"pcie.0","addr":"0x1.0x1"}
-{"driver":"pcie-root-port","port":10,"chassis":3,"id":"pci.3","bus":"pcie.0","addr":"0x1.0x2"}
-{"driver":"pcie-root-port","port":11,"chassis":4,"id":"pci.4","bus":"pcie.0","addr":"0x1.0x3"}
-{"driver":"pcie-root-port","port":12,"chassis":5,"id":"pci.5","bus":"pcie.0","addr":"0x1.0x4"}
-{"driver":"pcie-root-port","port":13,"chassis":6,"id":"pci.6","bus":"pcie.0","addr":"0x1.0x5"}
-{"driver":"pcie-root-port","port":14,"chassis":7,"id":"pci.7","bus":"pcie.0","addr":"0x1.0x6"}
-{"driver":"pcie-root-port","port":15,"chassis":8,"id":"pci.8","bus":"pcie.0","addr":"0x1.0x7"}
-{"driver":"pcie-root-port","port":16,"chassis":9,"id":"pci.9","bus":"pcie.0","multifunction":true,"addr":"0x2"}
-{"driver":"pcie-root-port","port":17,"chassis":10,"id":"pci.10","bus":"pcie.0","addr":"0x2.0x1"}
-{"driver":"pcie-root-port","port":18,"chassis":11,"id":"pci.11","bus":"pcie.0","addr":"0x2.0x2"}
-{"driver":"pcie-root-port","port":19,"chassis":12,"id":"pci.12","bus":"pcie.0","addr":"0x2.0x3"}
-{"driver":"pcie-root-port","port":20,"chassis":13,"id":"pci.13","bus":"pcie.0","addr":"0x2.0x4"}
-{"driver":"pcie-root-port","port":21,"chassis":14,"id":"pci.14","bus":"pcie.0","addr":"0x2.0x5"}
-{"driver":"qemu-xhci","p2":15,"p3":15,"id":"usb","bus":"pci.2","addr":"0x0"}
-{"driver":"virtio-serial-pci","id":"virtio-serial0","bus":"pci.3","addr":"0x0"}
-{"driver":"file","filename":"/var/lib/libvirt/images/debian13-base.qcow2","node-name":"libvirt-3-storage","auto-read-only":true,"discard":"unmap"}
-{"node-name":"libvirt-3-format","read-only":true,"driver":"qcow2","file":"libvirt-3-storage","backing":null}
-{"driver":"file","filename":"/var/lib/libvirt/images/cp1.qcow2","node-name":"libvirt-2-storage","auto-read-only":true,"discard":"unmap"}
-{"node-name":"libvirt-2-format","read-only":false,"driver":"qcow2","file":"libvirt-2-storage","backing":"libvirt-3-format"}
-{"driver":"virtio-blk-pci","bus":"pci.4","addr":"0x0","drive":"libvirt-2-format","id":"virtio-disk0","bootindex":1}
-{"driver":"file","filename":"/var/lib/libvirt/images/cp1-seed.iso","node-name":"libvirt-1-storage","read-only":true}
-{"driver":"ide-cd","bus":"ide.0","drive":"libvirt-1-storage","id":"sata0-0-0"}
-{"driver":"virtio-net-pci","netdev":"hostnet0","id":"net0","mac":"52:54:00:aa:fe:cd","bus":"pci.1","addr":"0x0"}
-{"driver":"isa-serial","chardev":"charserial0","id":"serial0","index":0}
-{"driver":"virtserialport","bus":"virtio-serial0.0","nr":1,"chardev":"charchannel0","id":"channel0","name":"org.qemu.guest_agent.0"}
-{"id":"audio1","driver":"none"}
-{"driver":"virtio-balloon-pci","id":"balloon0","bus":"pci.5","addr":"0x0"}
-{"driver":"virtio-rng-pci","rng":"objrng0","id":"rng0","bus":"pci.6","addr":"0x0"}
--machine
-{"driver":"pcie-root-port","port":8,"chassis":1,"id":"pci.1","bus":"pcie.0","multifunction":true,"addr":"0x1"}
-{"driver":"pcie-root-port","port":9,"chassis":2,"id":"pci.2","bus":"pcie.0","addr":"0x1.0x1"}
-{"driver":"pcie-root-port","port":10,"chassis":3,"id":"pci.3","bus":"pcie.0","addr":"0x1.0x2"}
-{"driver":"pcie-root-port","port":11,"chassis":4,"id":"pci.4","bus":"pcie.0","addr":"0x1.0x3"}
-{"driver":"pcie-root-port","port":12,"chassis":5,"id":"pci.5","bus":"pcie.0","addr":"0x1.0x4"}
-{"driver":"pcie-root-port","port":13,"chassis":6,"id":"pci.6","bus":"pcie.0","addr":"0x1.0x5"}
-{"driver":"pcie-root-port","port":14,"chassis":7,"id":"pci.7","bus":"pcie.0","addr":"0x1.0x6"}
-{"driver":"pcie-root-port","port":15,"chassis":8,"id":"pci.8","bus":"pcie.0","addr":"0x1.0x7"}
-{"driver":"pcie-root-port","port":16,"chassis":9,"id":"pci.9","bus":"pcie.0","multifunction":true,"addr":"0x2"}
-(nếu trống, thử:)
-pgrep: pattern that searches for process name longer than 15 characters will result in zero matches
-Try `pgrep -f' option to match against the complete command line.
-
-########## 3. Disk chain + tính hợp lệ của cp1.qcow2 ##########
-qemu-img: Could not open '/var/lib/libvirt/images/cp1.qcow2': Failed to get shared "write" lock
-Is another process using the image [/var/lib/libvirt/images/cp1.qcow2]?
---- check consistency ---
-qemu-img: Could not open '/var/lib/libvirt/images/cp1.qcow2': Failed to get shared "write" lock
-Is another process using the image [/var/lib/libvirt/images/cp1.qcow2]?
-
-########## 4. Base image ##########
-file format: qcow2
-virtual size: 3 GiB (3221225472 bytes)
-disk size: 325 MiB
-    corrupt: false
-    disk size: 325 MiB
-
-########## 5. Seed ISO cloud-init ##########
--rw-r--r-- 1 libvirt-qemu libvirt-qemu 368K Jul 18 21:18 /var/lib/libvirt/images/cp1-seed.iso
---- nội dung user-data trong seed (kiểm SSH key + runcmd) ---
-
-########## 6. VM có tiêu CPU không (sống hay treo) ##########
--- lần 1 --
--- lần 2 (sau 4s) --
-
-########## 7. XML boot/os của cp1 ##########
-  <os>
-    <type arch='x86_64' machine='pc-q35-10.0'>hvm</type>
-    <boot dev='hd'/>
-  </os>
-  <features>
-    <acpi/>
-    <apic/>
-
-########## 8. RAM host còn đủ cho 3 VM không ##########
-               total        used        free      shared  buff/cache   available
-Mem:            15Gi       8.0Gi       3.1Gi       1.1Gi       5.6Gi       7.3Gi
-Swap:          7.6Gi          0B       7.6Gi
-
-########## DONE — copy toàn bộ output ở trên ##########
+==================== Chuẩn bị cp1 (192.168.122.126) ====================
+Warning: Permanently added '192.168.122.126' (ED25519) to the list of known hosts.
+[node cp1] Bắt đầu chuẩn bị kubeadm...
+Hit:1 http://security.debian.org/debian-security trixie-security InRelease
+Hit:2 http://ftp.jp.debian.org/debian trixie InRelease
+Hit:4 http://ftp.jp.debian.org/debian trixie-updates InRelease
+Get:3 https://prod-cdn.packages.k8s.io/repositories/isv:/kubernetes:/core:/stable:/v1.33/deb  InRelease [1,233 B]
+Ign:3 https://prod-cdn.packages.k8s.io/repositories/isv:/kubernetes:/core:/stable:/v1.33/deb  InRelease
+Fetched 1,233 B in 1s (1,756 B/s)
+Reading package lists...
+W: OpenPGP signature verification failed: https://prod-cdn.packages.k8s.io/repositories/isv:/kubernetes:/core:/stable:/v1.33/deb  InRelease: Sub-process /usr/bin/sqv returned an error code (1), error message is: Missing key DE15B14486CD377B9E876E1A234654DA9A296436, which is needed to verify signature.
+Reading package lists...
+Building dependency tree...
+Reading state information...
+containerd is already the newest version (1.7.24~ds1-6+deb13u1).
+apt-transport-https is already the newest version (3.0.3).
+ca-certificates is already the newest version (20250419).
+curl is already the newest version (8.14.1-2+deb13u4).
+gpg is already the newest version (2.4.7-21+deb13u1+b4).
+0 upgraded, 0 newly installed, 0 to remove and 0 not upgraded.
+Hit:1 http://ftp.jp.debian.org/debian trixie InRelease
+Hit:2 http://security.debian.org/debian-security trixie-security InRelease
+Hit:3 http://ftp.jp.debian.org/debian trixie-updates InRelease
+Get:4 https://prod-cdn.packages.k8s.io/repositories/isv:/kubernetes:/core:/stable:/v1.33/deb  InRelease [1,233 B]
+Ign:4 https://prod-cdn.packages.k8s.io/repositories/isv:/kubernetes:/core:/stable:/v1.33/deb  InRelease
+Fetched 1,233 B in 2s (703 B/s)
+Reading package lists...
+W: OpenPGP signature verification failed: https://prod-cdn.packages.k8s.io/repositories/isv:/kubernetes:/core:/stable:/v1.33/deb  InRelease: Sub-process /usr/bin/sqv returned an error code (1), error message is: Missing key DE15B14486CD377B9E876E1A234654DA9A296436, which is needed to verify signature.
+Reading package lists...
+Building dependency tree...
+Reading state information...
+The following additional packages will be installed:
+  iptables kubernetes-cni libip4tc2 libip6tc2 libnetfilter-conntrack3
+  libnfnetlink0
+Suggested packages:
+  firewalld
+The following NEW packages will be installed:
+  iptables kubeadm kubectl kubelet kubernetes-cni libip4tc2 libip6tc2
+  libnetfilter-conntrack3 libnfnetlink0
+0 upgraded, 9 newly installed, 0 to remove and 0 not upgraded.
+Need to get 78.9 MB of archives.
+After this operation, 312 MB of additional disk space will be used.
+Get:1 http://ftp.jp.debian.org/debian trixie/main amd64 libip4tc2 amd64 1.8.11-2 [20.0 kB]
+Get:3 http://ftp.jp.debian.org/debian trixie/main amd64 libip6tc2 amd64 1.8.11-2 [20.3 kB]
+Get:5 http://ftp.jp.debian.org/debian trixie/main amd64 libnfnetlink0 amd64 1.0.2-3 [14.4 kB]
+Get:7 http://ftp.jp.debian.org/debian trixie/main amd64 libnetfilter-conntrack3 amd64 1.1.0-1 [42.1 kB]
+Get:8 http://ftp.jp.debian.org/debian trixie/main amd64 iptables amd64 1.8.11-2 [361 kB]
+Get:2 https://prod-cdn.packages.k8s.io/repositories/isv:/kubernetes:/core:/stable:/v1.33/deb  kubeadm 1.33.13-1.1 [12.8 MB]
+Get:4 https://prod-cdn.packages.k8s.io/repositories/isv:/kubernetes:/core:/stable:/v1.33/deb  kubectl 1.33.13-1.1 [11.8 MB]
+Get:6 https://prod-cdn.packages.k8s.io/repositories/isv:/kubernetes:/core:/stable:/v1.33/deb  kubernetes-cni 1.6.0-1.1 [37.8 MB]
+Get:9 https://prod-cdn.packages.k8s.io/repositories/isv:/kubernetes:/core:/stable:/v1.33/deb  kubelet 1.33.13-1.1 [16.0 MB]
+Fetched 78.9 MB in 6s (12.6 MB/s)
+Selecting previously unselected package libip4tc2:amd64.
+(Reading database ... 35676 files and directories currently installed.)
+Preparing to unpack .../0-libip4tc2_1.8.11-2_amd64.deb ...
+Unpacking libip4tc2:amd64 (1.8.11-2) ...
+Selecting previously unselected package libip6tc2:amd64.
+Preparing to unpack .../1-libip6tc2_1.8.11-2_amd64.deb ...
+Unpacking libip6tc2:amd64 (1.8.11-2) ...
+Selecting previously unselected package libnfnetlink0:amd64.
+Preparing to unpack .../2-libnfnetlink0_1.0.2-3_amd64.deb ...
+Unpacking libnfnetlink0:amd64 (1.0.2-3) ...
+Selecting previously unselected package libnetfilter-conntrack3:amd64.
+Preparing to unpack .../3-libnetfilter-conntrack3_1.1.0-1_amd64.deb ...
+Unpacking libnetfilter-conntrack3:amd64 (1.1.0-1) ...
+Selecting previously unselected package iptables.
+Preparing to unpack .../4-iptables_1.8.11-2_amd64.deb ...
+Unpacking iptables (1.8.11-2) ...
+Selecting previously unselected package kubeadm.
+Preparing to unpack .../5-kubeadm_1.33.13-1.1_amd64.deb ...
+Unpacking kubeadm (1.33.13-1.1) ...
+Selecting previously unselected package kubectl.
+Preparing to unpack .../6-kubectl_1.33.13-1.1_amd64.deb ...
+Unpacking kubectl (1.33.13-1.1) ...
+Selecting previously unselected package kubernetes-cni.
+Preparing to unpack .../7-kubernetes-cni_1.6.0-1.1_amd64.deb ...
+Unpacking kubernetes-cni (1.6.0-1.1) ...
+Selecting previously unselected package kubelet.
+Preparing to unpack .../8-kubelet_1.33.13-1.1_amd64.deb ...
+Unpacking kubelet (1.33.13-1.1) ...
+Setting up libip4tc2:amd64 (1.8.11-2) ...
+Setting up kubeadm (1.33.13-1.1) ...
+Setting up libip6tc2:amd64 (1.8.11-2) ...
+Setting up kubectl (1.33.13-1.1) ...
+Setting up libnfnetlink0:amd64 (1.0.2-3) ...
+Setting up kubernetes-cni (1.6.0-1.1) ...
+Setting up libnetfilter-conntrack3:amd64 (1.1.0-1) ...
+Setting up iptables (1.8.11-2) ...
+update-alternatives: using /usr/sbin/iptables-legacy to provide /usr/sbin/iptables (iptables) in auto mode
+update-alternatives: using /usr/sbin/ip6tables-legacy to provide /usr/sbin/ip6tables (ip6tables) in auto mode
+update-alternatives: using /usr/sbin/iptables-nft to provide /usr/sbin/iptables (iptables) in auto mode
+update-alternatives: using /usr/sbin/ip6tables-nft to provide /usr/sbin/ip6tables (ip6tables) in auto mode
+update-alternatives: using /usr/sbin/arptables-nft to provide /usr/sbin/arptables (arptables) in auto mode
+update-alternatives: using /usr/sbin/ebtables-nft to provide /usr/sbin/ebtables (ebtables) in auto mode
+Setting up kubelet (1.33.13-1.1) ...
+Processing triggers for man-db (2.13.1-1) ...
+Processing triggers for libc-bin (2.41-12+deb13u3) ...
+kubelet set on hold.
+kubeadm set on hold.
+kubectl set on hold.
+[node cp1] XONG. kubeadm: v1.33.13

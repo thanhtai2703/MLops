@@ -22,5 +22,6 @@ for NODE in "${NODES[@]}"; do
 done
 
 echo
-echo "Kiểm tra 1 node đã chuẩn bị xong chưa (file mốc do cloud-init tạo):"
-echo "  ssh debian@<IP-cp1> 'ls -l /var/lib/cloud/kubeadm-node-ready && kubeadm version'"
+echo "SSH thử:      ssh debian@<IP-cp1> 'hostname && cat /etc/debian_version'"
+echo "Chưa cài kubeadm? Chạy:  ./05-prepare-nodes.sh"
+echo "Đã chạy 05 rồi, kiểm tra: ssh debian@<IP-cp1> 'ls -l /var/lib/kubeadm-node-ready && kubeadm version -o short'"
